@@ -1,6 +1,29 @@
-# sv
+## Income Tax Calci
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+[![Netlify Status](https://api.netlify.com/api/v1/badges/ec7b4320-a61d-48db-8f78-201caeba5d07/deploy-status)](https://app.netlify.com/sites/income-tax-calci/deploys)
+
+This project is an income tax calculator built using Svelte. It helps users to calculate their income tax based on the provided inputs.
+
+## Tech used?
+
+- Svelte Kit (Svelte v5)
+- Tailwind CSS
+- TypeScript
+
+## Installation
+
+To set up the project locally, follow these steps:
+
+1. Clone the repository:
+    ```bash
+    git clone <repository-url>
+    cd income-tax-calci
+    ```
+
+2. Install dependencies:
+    ```bash
+    npm install
+    ```
 
 ## Creating a project
 
