@@ -1,0 +1,18 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+@layer base {
+	body {
+		@apply bg-gray-100 font-sans text-gray-800;
+	}
+	input {
+		@apply rounded border border-gray-300 px-2 py-2;
+	}
+}
+
+@layer components {
+	.btn {
+		@apply bg-primary hover:bg-primary/80 rounded-md px-4 py-2 text-white transition duration-300 ease-in;
+	}
+}
