@@ -11,42 +11,59 @@
 	function calculateTax(amount: number, scheme: 'old' | 'new'): number {
 		let tax = 0;
 		const income = amount * 100000; // Convert LPA to actual amount
+		const standardDeduction = scheme === 'new' ? 75000 : 50000;
+		let taxableIncome = income - standardDeduction;
 
-		if (scheme === 'old') {
-			if (income > 1000000) {
-				tax += (income - 1000000) * 0.3;
-				tax += 500000 * 0.2;
-				tax += 250000 * 0.05;
-			} else if (income > 500000) {
-				tax += (income - 500000) * 0.2;
-				tax += 250000 * 0.05;
-			} else if (income > 250000) {
-				tax += (income - 250000) * 0.05;
+		if (scheme === 'new') {
+			// New Tax Regime
+			if (taxableIncome > 1500000) {
+				tax += (taxableIncome - 1500000) * 0.3;
+				taxableIncome = 1500000;
+			}
+			if (taxableIncome > 1200000) {
+				tax += (taxableIncome - 1200000) * 0.2;
+				taxableIncome = 1200000;
+			}
+			if (taxableIncome > 1000000) {
+				tax += (taxableIncome - 1000000) * 0.15;
+				taxableIncome = 1000000;
+			}
+			if (taxableIncome > 700000) {
+				tax += (taxableIncome - 700000) * 0.1;
+				taxableIncome = 700000;
+			}
+			if (taxableIncome > 300000) {
+				tax += (taxableIncome - 300000) * 0.05;
 			}
 		} else {
-			if (income > 1500000) {
-				tax += (income - 1500000) * 0.3;
-				tax += 300000 * 0.2;
-				tax += 300000 * 0.15;
-				tax += 300000 * 0.1;
-				tax += 300000 * 0.05;
-			} else if (income > 1200000) {
-				tax += (income - 1200000) * 0.2;
-				tax += 300000 * 0.15;
-				tax += 300000 * 0.1;
-				tax += 300000 * 0.05;
-			} else if (income > 900000) {
-				tax += (income - 900000) * 0.15;
-				tax += 300000 * 0.1;
-				tax += 300000 * 0.05;
-			} else if (income > 600000) {
-				tax += (income - 600000) * 0.1;
-				tax += 300000 * 0.05;
-			} else if (income > 300000) {
-				tax += (income - 300000) * 0.05;
+			// Old Tax Regime
+			if (taxableIncome > 1000000) {
+				tax += (taxableIncome - 1000000) * 0.3;
+				taxableIncome = 1000000;
+			}
+			if (taxableIncome > 500000) {
+				tax += (taxableIncome - 500000) * 0.2;
+				taxableIncome = 500000;
+			}
+			if (taxableIncome > 250000) {
+				tax += (taxableIncome - 250000) * 0.05;
 			}
 		}
-		return tax;
+
+		// Calculate cess (4% of tax) only when amount is greater than 50LPA
+		let totalTax = tax;
+		if (amount > 50_00_000) {
+			const cessAmount = tax * 0.04;
+			totalTax += cessAmount;
+		}
+
+		const cessEducation = tax * 0.04;
+		totalTax += cessEducation;
+
+		const professionalTax = 200 * 12;
+
+		totalTax += professionalTax;
+		return totalTax;
 	}
 
 	function handleSubmit() {
