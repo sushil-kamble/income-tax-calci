@@ -1,4 +1,4 @@
-## Income Tax Calci
+## In-Hand Salary Calci
 
 [![Netlify Status](https://api.netlify.com/api/v1/badges/ec7b4320-a61d-48db-8f78-201caeba5d07/deploy-status)](https://app.netlify.com/sites/income-tax-calci/deploys)
 

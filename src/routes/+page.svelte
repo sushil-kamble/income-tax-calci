@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+
 	let scheme: 'old' | 'new' = $state('new');
 	let salary = $state<number | string>('');
 	let results = $state<{
@@ -16,24 +18,28 @@
 
 		if (scheme === 'new') {
 			// New Tax Regime
-			if (taxableIncome > 1500000) {
-				tax += (taxableIncome - 1500000) * 0.3;
-				taxableIncome = 1500000;
+			if (taxableIncome > 2400000) {
+				tax += (taxableIncome - 2400000) * 0.3;
+				taxableIncome = 2400000;
+			}
+			if (taxableIncome > 2000000) {
+				tax += (taxableIncome - 2000000) * 0.25;
+				taxableIncome = 2000000;
+			}
+			if (taxableIncome > 1600000) {
+				tax += (taxableIncome - 1600000) * 0.2;
+				taxableIncome = 1600000;
 			}
 			if (taxableIncome > 1200000) {
-				tax += (taxableIncome - 1200000) * 0.2;
+				tax += (taxableIncome - 1200000) * 0.15;
 				taxableIncome = 1200000;
 			}
-			if (taxableIncome > 1000000) {
-				tax += (taxableIncome - 1000000) * 0.15;
-				taxableIncome = 1000000;
+			if (taxableIncome > 800000) {
+				tax += (taxableIncome - 800000) * 0.1;
+				taxableIncome = 800000;
 			}
-			if (taxableIncome > 700000) {
-				tax += (taxableIncome - 700000) * 0.1;
-				taxableIncome = 700000;
-			}
-			if (taxableIncome > 300000) {
-				tax += (taxableIncome - 300000) * 0.05;
+			if (taxableIncome > 400000) {
+				tax += (taxableIncome - 400000) * 0.05;
 			}
 		} else {
 			// Old Tax Regime
@@ -92,55 +98,114 @@
 		}
 		return `₹${num.toFixed(2)}`;
 	}
+
+	// Format Salary (make it comma separated in Indian format)
+	function formatSalary(num: number): string {
+		return `₹${Number(num).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+	}
+
+	const formattedSalary = $derived.by(() => {
+		return formatSalary(Number(salary) * 100000);
+	});
+
+	function focusSalaryInput() {
+		const salaryInput = document.getElementById('annual-salary');
+		if (salaryInput) {
+			salaryInput.focus();
+		}
+	}
+
+	function handleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			handleReset();
+			focusSalaryInput();
+		}
+	}
+
+	// Add event listener for 'Escape' key
+	onMount(() => {
+		window.addEventListener('keydown', handleKeydown);
+		return () => {
+			window.removeEventListener('keydown', handleKeydown);
+		};
+	});
 </script>
 
 <div class="mx-auto mt-10 max-w-2xl rounded-lg bg-white p-6 shadow-md">
-	<h1 class="mb-8 text-center text-3xl font-bold text-gray-800">Income Tax Calculator</h1>
+	<h1 class="mb-8 text-center text-xl font-bold text-gray-800 md:text-3xl">
+		In-Hand Salary Calculator (AY 2025-26)
+	</h1>
 
-	<form onsubmit={handleSubmit} class="space-y-6">
+	<form onsubmit={handleSubmit} class="space-y-6" aria-labelledby="form-title">
 		<div class="space-y-4">
 			<label for="tax-scheme" class="block font-medium text-gray-700">Tax Scheme</label>
 			<div class="flex space-x-4">
 				<label class="flex items-center">
 					<input
-						id="tax-scheme"
+						id="tax-scheme-new"
 						type="radio"
 						bind:group={scheme}
 						value="new"
 						class="form-radio text-blue-600"
+						aria-labelledby="new-scheme-label"
 					/>
-					<span class="ml-2">New Scheme</span>
+					<span id="new-scheme-label" class="ml-2">New Scheme</span>
 				</label>
 				<label class="flex items-center">
-					<input type="radio" bind:group={scheme} value="old" class="form-radio text-blue-600" />
-					<span class="ml-2">Old Scheme</span>
+					<input
+						type="radio"
+						bind:group={scheme}
+						value="old"
+						class="form-radio text-blue-600"
+						aria-labelledby="old-scheme-label"
+					/>
+					<span id="old-scheme-label" class="ml-2">Old Scheme</span>
 				</label>
 			</div>
 		</div>
 
 		<div>
-			<label for="annual-salary" class="mb-1 block font-medium text-gray-700"
-				>Annual Salary (LPA)
+			<label for="annual-salary" class="mb-1 block font-medium text-gray-700">
+				Annual Salary in LPA (Lakh Per Annum). For Eg: 12.75
 			</label>
 			<input
 				id="annual-salary"
 				type="number"
-				placeholder="Enter your annual salary in LPA (For example: 10.15)"
+				placeholder="(For example: 12.75) Enter your annual salary in LPA"
 				bind:value={salary}
 				step="0.001"
 				class="w-full"
+				aria-describedby="salary-description"
 			/>
+			<p class="mt-2 text-sm font-medium text-green-600">
+				Your Salary is <strong>
+					{!salary ? '(Enter your Salary in LPA in above box)' : formattedSalary}
+				</strong> per Annum
+			</p>
+			<p id="salary-description" class="text-grey-400 text-sm font-thin">
+				Hit Calculate to find out your In-hand Salary
+			</p>
+
+			{#if Number(salary) > 1000}
+				<p class="text-sm font-medium text-red-500">
+					Are your sure you are earning more than 1,000 LPA (10 crore+) ?🤔
+				</p>
+			{/if}
 		</div>
 
 		<div class="flex space-x-4">
-			<button type="submit" class="btn"> Calculate </button>
-			<button type="button" onclick={handleReset} class="btn"> Reset </button>
+			<button type="submit" class="btn" aria-label="Calculate your in-hand salary">
+				Calculate
+			</button>
+			<button type="button" onclick={handleReset} class="btn" aria-label="Reset the form">
+				Reset
+			</button>
 		</div>
 	</form>
 
 	{#if results}
-		<div class="mt-8">
-			<table class="min-w-full divide-y divide-gray-200">
+		<div class="mt-8" aria-live="polite">
+			<table class="mb-4 min-w-full divide-y divide-gray-200 border border-gray-200">
 				<thead>
 					<tr>
 						<th
@@ -174,7 +239,7 @@
 						<td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
 							In-hand Income
 						</td>
-						<td class="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
+						<td class="whitespace-nowrap px-6 py-4 text-right text-sm font-bold text-gray-500">
 							{formatNumber(results.inHandMonthly)}
 						</td>
 						<td class="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
@@ -183,6 +248,10 @@
 					</tr>
 				</tbody>
 			</table>
+			<div class="mb-4 rounded-lg bg-yellow-100 p-4 text-yellow-800">
+				<strong>Disclaimer:</strong> This is an approximate calculation. Your in-hand salary and tax
+				may vary slightly from the displayed amount.
+			</div>
 		</div>
 	{/if}
 </div>
