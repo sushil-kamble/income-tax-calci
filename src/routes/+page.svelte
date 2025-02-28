@@ -18,6 +18,10 @@
 
 		if (scheme === 'new') {
 			// New Tax Regime
+			if (taxableIncome <= 1275000) {
+				const professionalTax = 200 * 12;
+				return professionalTax;
+			}
 			if (taxableIncome > 2400000) {
 				tax += (taxableIncome - 2400000) * 0.3;
 				taxableIncome = 2400000;
