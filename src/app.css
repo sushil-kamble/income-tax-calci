@@ -3,16 +3,48 @@
 @import 'tailwindcss/utilities';
 
 @layer base {
-	body {
-		@apply bg-gray-100 font-sans text-gray-800;
+	:root {
+		--bg: #09090b;
+		--surface: #18181b;
+		--surface-alt: #1f1f23;
+		--border: #2e2e35;
+		--border-subtle: #232329;
+		--text: #fafafa;
+		--text-secondary: #a1a1aa;
+		--text-muted: #71717a;
+		--gold: #fbbf24;
+		--gold-bright: #fcd34d;
+		--gold-dim: #92400e;
+		--green: #34d399;
+		--green-bright: #6ee7b7;
+		--green-dim: #064e3b;
+		--red: #fb7185;
+		--cyan: #22d3ee;
 	}
-	input {
-		@apply rounded border border-gray-300 px-2 py-2;
-	}
-}
 
-@layer components {
-	.btn {
-		@apply bg-primary hover:bg-primary/80 rounded-md px-4 py-2 text-white transition duration-300 ease-in;
+	* {
+		box-sizing: border-box;
+	}
+
+	body {
+		font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+		background: var(--bg);
+		color: var(--text);
+		margin: 0;
+		padding: 0;
+		min-height: 100vh;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+
+	input[type='number'] {
+		-moz-appearance: textfield;
+		appearance: textfield;
+	}
+
+	input[type='number']::-webkit-inner-spin-button,
+	input[type='number']::-webkit-outer-spin-button {
+		-webkit-appearance: none;
+		margin: 0;
 	}
 }

@@ -5,11 +5,13 @@ export default {
 
 	theme: {
 		fontFamily: {
-			sans: ['EB Garamond', 'serif']
+			sans: ['Outfit', 'system-ui', '-apple-system', 'sans-serif'],
+			mono: ['JetBrains Mono', 'monospace'],
+			serif: ['Instrument Serif', 'serif']
 		},
 		extend: {
 			colors: {
-				primary: '#1f2937' // Add primary color
+				primary: '#fbbf24'
 			}
 		}
 	},

@@ -1,541 +1,560 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
 
 	let scheme: 'old' | 'new' = $state('new');
 	let salary = $state<number | string>('');
+	let pfMonthly = $state<number>(1800);
 	let showBreakdown = $state(false);
-	let results = $state<{
-		yearly: number;
-		monthly: number;
-		inHandYearly: number;
-		inHandMonthly: number;
-		breakdown: TaxBreakdown[];
-	} | null>(null);
 
-	interface TaxBreakdown {
-		slab: string;
-		rate: string;
-		taxableAmount: number;
+	interface SlabDetail {
+		label: string;
+		rate: number;
+		amount: number;
 		tax: number;
 	}
 
-	function calculateTaxWithBreakdown(amount: number, scheme: 'old' | 'new'): { tax: number; breakdown: TaxBreakdown[] } {
-		let tax = 0;
-		const breakdown: TaxBreakdown[] = [];
-		const income = amount * 100000; // Convert LPA to actual amount
-		const standardDeduction = scheme === 'new' ? 75000 : 50000;
-		let taxableIncome = income - standardDeduction;
-
-		// Add standard deduction info
-		breakdown.push({
-			slab: 'Standard Deduction',
-			rate: '-',
-			taxableAmount: standardDeduction,
-			tax: 0
-		});
-
-		if (scheme === 'new') {
-			// New Tax Regime
-			if (taxableIncome <= 1200000) {
-				const professionalTax = 200 * 12;
-				breakdown.push({
-					slab: 'Professional Tax',
-					rate: '₹200/month',
-					taxableAmount: 0,
-					tax: professionalTax
-				});
-				return { tax: professionalTax, breakdown };
-			}
-
-			// Calculate slabs from highest to lowest
-			if (taxableIncome > 2400000) {
-				const slabAmount = taxableIncome - 2400000;
-				const slabTax = slabAmount * 0.3;
-				tax += slabTax;
-				breakdown.push({
-					slab: 'Above ₹24,00,000',
-					rate: '30%',
-					taxableAmount: slabAmount,
-					tax: slabTax
-				});
-				taxableIncome = 2400000;
-			}
-			if (taxableIncome > 2000000) {
-				const slabAmount = taxableIncome - 2000000;
-				const slabTax = slabAmount * 0.25;
-				tax += slabTax;
-				breakdown.push({
-					slab: '₹20,00,001 - ₹24,00,000',
-					rate: '25%',
-					taxableAmount: slabAmount,
-					tax: slabTax
-				});
-				taxableIncome = 2000000;
-			}
-			if (taxableIncome > 1600000) {
-				const slabAmount = taxableIncome - 1600000;
-				const slabTax = slabAmount * 0.2;
-				tax += slabTax;
-				breakdown.push({
-					slab: '₹16,00,001 - ₹20,00,000',
-					rate: '20%',
-					taxableAmount: slabAmount,
-					tax: slabTax
-				});
-				taxableIncome = 1600000;
-			}
-			if (taxableIncome > 1200000) {
-				const slabAmount = taxableIncome - 1200000;
-				const slabTax = slabAmount * 0.15;
-				tax += slabTax;
-				breakdown.push({
-					slab: '₹12,00,001 - ₹16,00,000',
-					rate: '15%',
-					taxableAmount: slabAmount,
-					tax: slabTax
-				});
-				taxableIncome = 1200000;
-			}
-			if (taxableIncome > 800000) {
-				const slabAmount = taxableIncome - 800000;
-				const slabTax = slabAmount * 0.1;
-				tax += slabTax;
-				breakdown.push({
-					slab: '₹8,00,001 - ₹12,00,000',
-					rate: '10%',
-					taxableAmount: slabAmount,
-					tax: slabTax
-				});
-				taxableIncome = 800000;
-			}
-			if (taxableIncome > 400000) {
-				const slabAmount = taxableIncome - 400000;
-				const slabTax = slabAmount * 0.05;
-				tax += slabTax;
-				breakdown.push({
-					slab: '₹4,00,001 - ₹8,00,000',
-					rate: '5%',
-					taxableAmount: slabAmount,
-					tax: slabTax
-				});
-			}
-
-			// Add up to 4L as 0% slab
-			const zeroSlabAmount = Math.min(taxableIncome, 400000);
-			if (zeroSlabAmount > 0) {
-				breakdown.push({
-					slab: 'Up to ₹4,00,000',
-					rate: '0%',
-					taxableAmount: zeroSlabAmount,
-					tax: 0
-				});
-			}
-		} else {
-			// Old Tax Regime
-			if (taxableIncome > 1000000) {
-				const slabAmount = taxableIncome - 1000000;
-				const slabTax = slabAmount * 0.3;
-				tax += slabTax;
-				breakdown.push({
-					slab: 'Above ₹10,00,000',
-					rate: '30%',
-					taxableAmount: slabAmount,
-					tax: slabTax
-				});
-				taxableIncome = 1000000;
-			}
-			if (taxableIncome > 500000) {
-				const slabAmount = taxableIncome - 500000;
-				const slabTax = slabAmount * 0.2;
-				tax += slabTax;
-				breakdown.push({
-					slab: '₹5,00,001 - ₹10,00,000',
-					rate: '20%',
-					taxableAmount: slabAmount,
-					tax: slabTax
-				});
-				taxableIncome = 500000;
-			}
-			if (taxableIncome > 250000) {
-				const slabAmount = taxableIncome - 250000;
-				const slabTax = slabAmount * 0.05;
-				tax += slabTax;
-				breakdown.push({
-					slab: '₹2,50,001 - ₹5,00,000',
-					rate: '5%',
-					taxableAmount: slabAmount,
-					tax: slabTax
-				});
-				taxableIncome = 250000;
-			}
-
-			// Add up to 2.5L as 0% slab
-			if (taxableIncome > 0) {
-				breakdown.push({
-					slab: 'Up to ₹2,50,000',
-					rate: '0%',
-					taxableAmount: taxableIncome,
-					tax: 0
-				});
-			}
-		}
-
-		// Calculate cess (4% of tax) only when amount is greater than 50LPA
-		let totalTax = tax;
-		if (amount > 50_00_000) {
-			const cessAmount = tax * 0.04;
-			totalTax += cessAmount;
-			breakdown.push({
-				slab: 'Higher Education Cess',
-				rate: '4% of tax',
-				taxableAmount: 0,
-				tax: cessAmount
-			});
-		}
-
-		const cessEducation = tax * 0.04;
-		totalTax += cessEducation;
-		breakdown.push({
-			slab: 'Education Cess',
-			rate: '4% of tax',
-			taxableAmount: 0,
-			tax: cessEducation
-		});
-
-		const professionalTax = 200 * 12;
-		totalTax += professionalTax;
-		breakdown.push({
-			slab: 'Professional Tax',
-			rate: '₹200/month',
-			taxableAmount: 0,
-			tax: professionalTax
-		});
-
-		return { tax: totalTax, breakdown };
+	function formatIndian(num: number): string {
+		return num.toLocaleString('en-IN', { maximumFractionDigits: 0 });
 	}
 
-	function handleSubmit() {
-		const { tax: yearlyTax, breakdown } = calculateTaxWithBreakdown(Number(salary), scheme);
-		const monthlyTax = yearlyTax / 12;
-		const yearlyIncome = Number(salary) * 100000;
-		results = {
-			yearly: yearlyTax,
-			monthly: monthlyTax,
-			inHandYearly: yearlyIncome - yearlyTax,
-			inHandMonthly: (yearlyIncome - yearlyTax) / 12,
-			breakdown
+	function formatShort(num: number): string {
+		const abs = Math.abs(num);
+		const sign = num < 0 ? '-' : '';
+		if (abs >= 100000) {
+			return `${sign}₹${(abs / 100000).toFixed(2)}L`;
+		} else if (abs >= 1000) {
+			return `${sign}₹${(abs / 1000).toFixed(1)}K`;
+		}
+		return `${sign}₹${abs.toFixed(0)}`;
+	}
+
+	const results = $derived.by(() => {
+		const sal = Number(salary);
+		if (!sal || sal <= 0) return null;
+
+		const income = sal * 100000;
+		const stdDeduction = scheme === 'new' ? 75000 : 50000;
+		const taxableIncome = Math.max(0, income - stdDeduction);
+
+		// Define slabs
+		const slabDefs =
+			scheme === 'new'
+				? [
+						{ min: 0, max: 400000, rate: 0 },
+						{ min: 400000, max: 800000, rate: 0.05 },
+						{ min: 800000, max: 1200000, rate: 0.1 },
+						{ min: 1200000, max: 1600000, rate: 0.15 },
+						{ min: 1600000, max: 2000000, rate: 0.2 },
+						{ min: 2000000, max: 2400000, rate: 0.25 },
+						{ min: 2400000, max: Infinity, rate: 0.3 }
+					]
+				: [
+						{ min: 0, max: 250000, rate: 0 },
+						{ min: 250000, max: 500000, rate: 0.05 },
+						{ min: 500000, max: 1000000, rate: 0.2 },
+						{ min: 1000000, max: Infinity, rate: 0.3 }
+					];
+
+		let baseTax = 0;
+		const slabs: SlabDetail[] = [];
+		let remaining = taxableIncome;
+
+		for (const slab of slabDefs) {
+			if (remaining <= 0) break;
+			const slabWidth = slab.max === Infinity ? remaining : slab.max - slab.min;
+			const taxableInSlab = Math.min(remaining, slabWidth);
+			const tax = taxableInSlab * slab.rate;
+			baseTax += tax;
+
+			const label =
+				slab.min === 0
+					? `Up to ₹${formatIndian(slab.max)}`
+					: slab.max === Infinity
+						? `Above ₹${formatIndian(slab.min)}`
+						: `₹${formatIndian(slab.min + 1)} — ₹${formatIndian(slab.max)}`;
+
+			slabs.push({ label, rate: slab.rate, amount: taxableInSlab, tax });
+			remaining -= taxableInSlab;
+		}
+
+		// Section 87A rebate for new regime
+		let rebateApplied = false;
+		let effectiveTax = baseTax;
+		if (scheme === 'new' && taxableIncome <= 1200000) {
+			rebateApplied = true;
+			effectiveTax = 0;
+		}
+
+		const educationCess = effectiveTax * 0.04;
+		const professionalTax = 2400;
+		const totalTax = effectiveTax + educationCess + professionalTax;
+
+		const pfEmployeeYearly = pfMonthly * 12;
+		const pfEmployerYearly = pfMonthly * 12;
+		const totalPF = pfEmployeeYearly + pfEmployerYearly;
+
+		const inHandYearly = income - totalTax - totalPF;
+		const inHandMonthly = inHandYearly / 12;
+
+		return {
+			income,
+			stdDeduction,
+			taxableIncome,
+			baseTax: effectiveTax,
+			educationCess,
+			professionalTax,
+			totalTax,
+			slabs,
+			rebateApplied,
+			pfEmployeeYearly,
+			pfEmployerYearly,
+			totalPF,
+			inHandYearly,
+			inHandMonthly,
+			taxMonthly: totalTax / 12
 		};
-	}
-
-	function handleReset() {
-		scheme = 'new';
-		salary = '';
-		results = null;
-		showBreakdown = false;
-	}
-
-	function toggleBreakdown() {
-		showBreakdown = !showBreakdown;
-	}
-
-	function formatNumber(num: number): string {
-		if (num >= 100000) {
-			return `₹${(num / 100000).toFixed(2)}L`;
-		} else if (num >= 1000) {
-			return `₹${(num / 1000).toFixed(2)}K`;
-		}
-		return `₹${num.toFixed(2)}`;
-	}
-
-	// Format Salary (make it comma separated in Indian format)
-	function formatSalary(num: number): string {
-		return `₹${Number(num).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-	}
-
-	const formattedSalary = $derived.by(() => {
-		return formatSalary(Number(salary) * 100000);
 	});
 
-	function focusSalaryInput() {
-		const salaryInput = document.getElementById('annual-salary');
-		if (salaryInput) {
-			salaryInput.focus();
-		}
-	}
-
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape') {
-			handleReset();
-			focusSalaryInput();
-		}
-	}
-
-	// Add event listener for 'Escape' key and handle URL query parameters
 	onMount(() => {
-		// Handle query parameters
 		const urlParams = new URLSearchParams(window.location.search);
 		const salaryParam = urlParams.get('salary');
 		const schemeParam = urlParams.get('scheme');
 
 		if (salaryParam) {
-			const parsedSalary = parseFloat(salaryParam);
-			if (!isNaN(parsedSalary)) {
-				salary = parsedSalary;
-				// Auto-calculate if salary is provided via URL
-				setTimeout(() => {
-					handleSubmit();
-				}, 100);
-			}
+			const parsed = parseFloat(salaryParam);
+			if (!isNaN(parsed)) salary = parsed;
 		}
-
-		if (schemeParam && (schemeParam === 'new' || schemeParam === 'old')) {
+		if (schemeParam === 'new' || schemeParam === 'old') {
 			scheme = schemeParam;
 		}
-
-		window.addEventListener('keydown', handleKeydown);
-		return () => {
-			window.removeEventListener('keydown', handleKeydown);
-		};
 	});
 </script>
 
-<svelte:head>
-	<link rel="preconnect" href="https://fonts.googleapis.com" />
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-	<link
-		href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;700&display=swap"
-		rel="stylesheet"
-	/>
-</svelte:head>
-
-<div class="calculator-container">
-	<div class="background-decoration"></div>
-
-	<div class="calculator-card">
-		<div class="header-section">
-			<h1 class="main-title">
-				In-Hand Salary <span class="title-accent">Calculator</span>
-			</h1>
-			<p class="subtitle">Assessment Year 2025-26</p>
+<div class="page">
+	<!-- Regime Toggle -->
+	<div class="section regime-section">
+		<div class="regime-toggle">
+			<button
+				class="regime-btn"
+				class:active={scheme === 'new'}
+				onclick={() => (scheme = 'new')}
+			>
+				New Regime
+			</button>
+			<button
+				class="regime-btn"
+				class:active={scheme === 'old'}
+				onclick={() => (scheme = 'old')}
+			>
+				Old Regime
+			</button>
+			<div class="regime-slider" class:slide-right={scheme === 'old'}></div>
 		</div>
+	</div>
 
-		<form onsubmit={handleSubmit} class="calculator-form" aria-labelledby="form-title">
-			<div class="form-group">
-				<label for="tax-scheme" class="form-label">Tax Regime</label>
-				<div class="radio-group">
-					<label class="radio-option" class:active={scheme === 'new'}>
-						<input
-							id="tax-scheme-new"
-							type="radio"
-							bind:group={scheme}
-							value="new"
-							class="radio-input"
-							aria-labelledby="new-scheme-label"
-						/>
-						<span class="radio-label" id="new-scheme-label">New Regime</span>
-						<div class="radio-indicator"></div>
-					</label>
-					<label class="radio-option" class:active={scheme === 'old'}>
-						<input
-							type="radio"
-							bind:group={scheme}
-							value="old"
-							class="radio-input"
-							aria-labelledby="old-scheme-label"
-						/>
-						<span class="radio-label" id="old-scheme-label">Old Regime</span>
-						<div class="radio-indicator"></div>
-					</label>
+	<!-- Salary Input -->
+	<div class="section input-section">
+		<label for="salary-input" class="input-label">Annual CTC</label>
+		<div class="salary-input-wrap">
+			<input
+				id="salary-input"
+				type="number"
+				placeholder="0"
+				bind:value={salary}
+				step="0.01"
+				class="salary-field"
+			/>
+			<span class="input-unit">Lakhs</span>
+		</div>
+		{#if salary && Number(salary) > 0}
+			<p class="salary-converted">
+				₹{formatIndian(Number(salary) * 100000)} per year
+			</p>
+		{/if}
+		{#if Number(salary) > 1000}
+			<p class="input-warning">Please verify — that's over ₹10 crore annually</p>
+		{/if}
+	</div>
+
+	<!-- PF Input -->
+	<div class="section pf-section">
+		<div class="pf-row">
+			<label for="pf-input" class="pf-label">PF per month</label>
+			<div class="pf-input-wrap">
+				<span class="pf-currency">₹</span>
+				<input
+					id="pf-input"
+					type="number"
+					bind:value={pfMonthly}
+					step="100"
+					class="pf-field"
+				/>
+			</div>
+		</div>
+		<p class="pf-note">Employee + Employer contribution deducted from CTC</p>
+	</div>
+
+	<!-- Results -->
+	{#if results}
+		<div class="results" role="region" aria-label="Calculation results">
+			<!-- Summary Cards -->
+			<div class="summary-grid">
+				<div class="summary-card tax-card">
+					<span class="card-label">Income Tax</span>
+					<span class="card-value tax-value">{formatShort(results.totalTax)}</span>
+					<span class="card-sub">{formatShort(results.taxMonthly)}/mo</span>
+				</div>
+				<div class="summary-card pf-card">
+					<span class="card-label">Total PF</span>
+					<span class="card-value pf-value">{formatShort(results.totalPF)}</span>
+					<span class="card-sub">{formatShort(results.totalPF / 12)}/mo</span>
+				</div>
+				<div class="summary-card inhand-card">
+					<span class="card-label">In-Hand Salary</span>
+					<span class="card-value inhand-value">{formatShort(results.inHandYearly)}</span>
+					<span class="card-sub inhand-sub">{formatShort(results.inHandMonthly)}/mo</span>
 				</div>
 			</div>
 
-			<div class="form-group">
-				<label for="annual-salary" class="form-label">
-					Annual Salary <span class="label-hint">(in Lakhs)</span>
-				</label>
-				<div class="input-wrapper">
-					<input
-						id="annual-salary"
-						type="number"
-						placeholder="e.g., 12.75"
-						bind:value={salary}
-						step="0.001"
-						class="salary-input"
-						aria-describedby="salary-description"
+			<!-- Breakdown Toggle -->
+			<button class="breakdown-toggle" onclick={() => (showBreakdown = !showBreakdown)}>
+				<span>View Calculations</span>
+				<svg
+					class="chevron"
+					class:open={showBreakdown}
+					width="18"
+					height="18"
+					viewBox="0 0 18 18"
+					fill="none"
+				>
+					<path
+						d="M4.5 6.75L9 11.25L13.5 6.75"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
 					/>
-					<div class="input-suffix">LPA</div>
-				</div>
+				</svg>
+			</button>
 
-				{#if salary}
-					<p class="salary-display">
-						<span class="salary-label">Annual Amount:</span>
-						<span class="salary-amount">{formattedSalary}</span>
-					</p>
-				{/if}
-
-				{#if Number(salary) > 1000}
-					<p class="warning-text">
-						⚠️ Earning more than ₹10 crore annually? Please verify your input.
-					</p>
-				{/if}
-			</div>
-
-			<div class="button-group">
-				<button type="submit" class="btn btn-primary" aria-label="Calculate your in-hand salary">
-					<span>Calculate</span>
-					<svg class="btn-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
-						<path d="M4 10h12m0 0l-4-4m4 4l-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-					</svg>
-				</button>
-				<button type="button" onclick={handleReset} class="btn btn-secondary" aria-label="Reset the form">
-					Reset
-				</button>
-			</div>
-		</form>
-
-		{#if results}
-			<div class="results-section" aria-live="polite">
-				<div class="results-grid">
-					<div class="result-card tax-card">
-						<div class="result-icon">
-							<svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-								<path d="M9 7h6m0 10v-3m-3 3h.01M9 11h.01M12 11h.01M15 11h.01M9 14h.01M12 14h.01M15 14h.01M9 17h.01M15 17h.01M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-							</svg>
-						</div>
-						<h3 class="result-title">Total Tax</h3>
-						<div class="result-amounts">
-							<div class="result-amount">
-								<span class="amount-label">Monthly</span>
-								<span class="amount-value">{formatNumber(results.monthly)}</span>
+			<!-- Detailed Breakdown -->
+			{#if showBreakdown}
+				<div class="breakdown">
+					<!-- Step 1: Taxable Income -->
+					<div class="calc-group">
+						<h3 class="calc-heading">Taxable Income</h3>
+						<div class="calc-rows">
+							<div class="calc-row">
+								<span class="calc-desc">Gross Salary (CTC)</span>
+								<span class="calc-amt">₹{formatIndian(results.income)}</span>
 							</div>
-							<div class="result-amount">
-								<span class="amount-label">Yearly</span>
-								<span class="amount-value">{formatNumber(results.yearly)}</span>
+							<div class="calc-row deduction-row">
+								<span class="calc-desc">(-) Standard Deduction</span>
+								<span class="calc-amt dim">₹{formatIndian(results.stdDeduction)}</span>
+							</div>
+							<div class="calc-row total-row">
+								<span class="calc-desc">Taxable Income</span>
+								<span class="calc-amt bold">₹{formatIndian(results.taxableIncome)}</span>
 							</div>
 						</div>
 					</div>
 
-					<div class="result-card income-card">
-						<div class="result-icon">
-							<svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-								<path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v4m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-							</svg>
-						</div>
-						<h3 class="result-title">In-Hand Salary</h3>
-						<div class="result-amounts">
-							<div class="result-amount">
-								<span class="amount-label">Monthly</span>
-								<span class="amount-value highlight">{formatNumber(results.inHandMonthly)}</span>
+					<!-- Step 2: Slab-wise Tax -->
+					<div class="calc-group">
+						<h3 class="calc-heading">Tax Slab Breakdown</h3>
+						<div class="slab-table">
+							<div class="slab-header">
+								<span>Slab</span>
+								<span>Rate</span>
+								<span>Taxable Amt</span>
+								<span>Tax</span>
 							</div>
-							<div class="result-amount">
-								<span class="amount-label">Yearly</span>
-								<span class="amount-value highlight">{formatNumber(results.inHandYearly)}</span>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<button class="breakdown-toggle" onclick={toggleBreakdown}>
-					<span>Tax Breakdown Details</span>
-					<svg
-						class="toggle-icon"
-						class:rotated={showBreakdown}
-						width="20"
-						height="20"
-						viewBox="0 0 20 20"
-						fill="none"
-					>
-						<path d="M5 7.5l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-					</svg>
-				</button>
-
-				{#if showBreakdown}
-					<div class="breakdown-section">
-						<h3 class="breakdown-title">Tax Slab Breakdown</h3>
-						<div class="breakdown-table">
-							{#each results.breakdown as item, index}
-								<div class="breakdown-row" style="animation-delay: {index * 50}ms">
-									<div class="breakdown-cell slab-cell">
-										<span class="slab-label">{item.slab}</span>
-										<span class="rate-badge">{item.rate}</span>
-									</div>
-									<div class="breakdown-cell amount-cell">
-										{#if item.taxableAmount > 0}
-											<span class="taxable-amount">{formatNumber(item.taxableAmount)}</span>
-										{/if}
-										<span class="tax-amount">{formatNumber(item.tax)}</span>
-									</div>
+							{#each results.slabs as slab, i}
+								<div class="slab-row" style="animation-delay: {i * 40}ms">
+									<span class="slab-label">{slab.label}</span>
+									<span class="slab-rate">{(slab.rate * 100).toFixed(0)}%</span>
+									<span class="slab-amount">₹{formatIndian(slab.amount)}</span>
+									<span class="slab-tax">₹{formatIndian(slab.tax)}</span>
 								</div>
 							{/each}
 						</div>
 					</div>
-				{/if}
 
-				<div class="disclaimer">
-					<svg class="disclaimer-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
-						<path d="M10 9v4m0-8h.01M19 10a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-					</svg>
-					<p>
-						<strong>Disclaimer:</strong> This is an approximate calculation based on standard deductions.
-						Your actual in-hand salary may vary based on additional exemptions and company policies.
-					</p>
+					<!-- Step 3: Tax Totals -->
+					<div class="calc-group">
+						<h3 class="calc-heading">Tax Computation</h3>
+						<div class="calc-rows">
+							<div class="calc-row">
+								<span class="calc-desc">Base Tax</span>
+								<span class="calc-amt">₹{formatIndian(results.baseTax)}</span>
+							</div>
+							{#if results.rebateApplied}
+								<div class="calc-row rebate-row">
+									<span class="calc-desc">Section 87A Rebate</span>
+									<span class="calc-amt rebate-text">Tax waived</span>
+								</div>
+							{/if}
+							<div class="calc-row">
+								<span class="calc-desc">Education & Health Cess (4%)</span>
+								<span class="calc-amt">₹{formatIndian(results.educationCess)}</span>
+							</div>
+							<div class="calc-row">
+								<span class="calc-desc">Professional Tax (₹200/mo)</span>
+								<span class="calc-amt">₹{formatIndian(results.professionalTax)}</span>
+							</div>
+							<div class="calc-row total-row highlight-tax">
+								<span class="calc-desc">Total Income Tax</span>
+								<span class="calc-amt bold">₹{formatIndian(results.totalTax)}</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Step 4: PF -->
+					<div class="calc-group">
+						<h3 class="calc-heading">PF Deduction</h3>
+						<div class="calc-rows">
+							<div class="calc-row">
+								<span class="calc-desc">Employee PF (₹{formatIndian(pfMonthly)} x 12)</span>
+								<span class="calc-amt">₹{formatIndian(results.pfEmployeeYearly)}</span>
+							</div>
+							<div class="calc-row">
+								<span class="calc-desc">Employer PF (₹{formatIndian(pfMonthly)} x 12)</span>
+								<span class="calc-amt">₹{formatIndian(results.pfEmployerYearly)}</span>
+							</div>
+							<div class="calc-row total-row">
+								<span class="calc-desc">Total PF</span>
+								<span class="calc-amt bold">₹{formatIndian(results.totalPF)}</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Step 5: In-Hand -->
+					<div class="calc-group final-group">
+						<h3 class="calc-heading">In-Hand Salary</h3>
+						<div class="calc-rows">
+							<div class="calc-row">
+								<span class="calc-desc">CTC</span>
+								<span class="calc-amt">₹{formatIndian(results.income)}</span>
+							</div>
+							<div class="calc-row deduction-row">
+								<span class="calc-desc">(-) Income Tax</span>
+								<span class="calc-amt dim">₹{formatIndian(results.totalTax)}</span>
+							</div>
+							<div class="calc-row deduction-row">
+								<span class="calc-desc">(-) Total PF</span>
+								<span class="calc-amt dim">₹{formatIndian(results.totalPF)}</span>
+							</div>
+							<div class="calc-row total-row highlight-green">
+								<span class="calc-desc">In-Hand (Yearly)</span>
+								<span class="calc-amt bold green">₹{formatIndian(results.inHandYearly)}</span>
+							</div>
+							<div class="calc-row total-row highlight-green">
+								<span class="calc-desc">In-Hand (Monthly)</span>
+								<span class="calc-amt bold green">₹{formatIndian(Math.round(results.inHandMonthly))}</span>
+							</div>
+						</div>
+					</div>
 				</div>
-			</div>
-		{/if}
-	</div>
+			{/if}
+		</div>
+	{/if}
 </div>
 
 <style>
-	:global(body) {
-		font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
-		background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
-		min-height: 100vh;
+	.page {
+		padding: 1.5rem 0 2rem;
 	}
 
-	.calculator-container {
-		position: relative;
-		min-height: 100vh;
-		padding: 2rem 1rem;
+	/* ─── Regime Toggle ─── */
+	.regime-section {
 		display: flex;
-		align-items: center;
 		justify-content: center;
+		margin-bottom: 2rem;
 	}
 
-	.background-decoration {
-		position: fixed;
-		top: 0;
-		left: 0;
+	.regime-toggle {
+		position: relative;
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: 0.75rem;
+		padding: 0.25rem;
 		width: 100%;
-		height: 100%;
-		opacity: 0.1;
-		background-image:
-			radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.3) 0%, transparent 50%),
-			radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.3) 0%, transparent 50%),
-			radial-gradient(circle at 40% 20%, rgba(139, 92, 246, 0.2) 0%, transparent 50%);
-		pointer-events: none;
+		max-width: 320px;
+	}
+
+	.regime-btn {
+		position: relative;
+		z-index: 1;
+		padding: 0.625rem 1.25rem;
+		background: none;
+		border: none;
+		color: var(--text-muted);
+		font-family: 'Outfit', sans-serif;
+		font-size: 0.875rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: color 0.25s;
+		border-radius: 0.5rem;
+	}
+
+	.regime-btn.active {
+		color: #09090b;
+	}
+
+	.regime-slider {
+		position: absolute;
+		top: 0.25rem;
+		left: 0.25rem;
+		width: calc(50% - 0.25rem);
+		height: calc(100% - 0.5rem);
+		background: var(--gold);
+		border-radius: 0.5rem;
+		transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 		z-index: 0;
 	}
 
-	.calculator-card {
-		position: relative;
-		z-index: 1;
-		max-width: 56rem;
-		width: 100%;
-		background: rgba(255, 255, 255, 0.98);
-		backdrop-filter: blur(20px);
-		border-radius: 1.5rem;
-		padding: 3rem;
-		box-shadow:
-			0 20px 60px -15px rgba(0, 0, 0, 0.4),
-			0 0 0 1px rgba(255, 255, 255, 0.1);
-		animation: slideUp 0.6s ease-out;
+	.regime-slider.slide-right {
+		transform: translateX(100%);
 	}
 
-	@keyframes slideUp {
+	/* ─── Input Section ─── */
+	.input-section {
+		margin-bottom: 0.75rem;
+	}
+
+	.input-label {
+		display: block;
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--text-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		margin-bottom: 0.5rem;
+	}
+
+	.salary-input-wrap {
+		position: relative;
+		display: flex;
+		align-items: center;
+	}
+
+	.salary-field {
+		width: 100%;
+		padding: 1rem 5rem 1rem 1.25rem;
+		font-family: 'JetBrains Mono', monospace;
+		font-size: 1.5rem;
+		font-weight: 600;
+		color: var(--text);
+		background: var(--surface);
+		border: 1.5px solid var(--border);
+		border-radius: 0.875rem;
+		outline: none;
+		transition: border-color 0.2s, box-shadow 0.2s;
+	}
+
+	.salary-field::placeholder {
+		color: var(--text-muted);
+		opacity: 0.4;
+	}
+
+	.salary-field:focus {
+		border-color: var(--gold);
+		box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1);
+	}
+
+	.input-unit {
+		position: absolute;
+		right: 1.25rem;
+		font-size: 0.8125rem;
+		font-weight: 600;
+		color: var(--text-muted);
+		letter-spacing: 0.04em;
+		pointer-events: none;
+	}
+
+	.salary-converted {
+		margin: 0.5rem 0 0;
+		font-family: 'JetBrains Mono', monospace;
+		font-size: 0.8125rem;
+		color: var(--gold);
+		font-weight: 500;
+	}
+
+	.input-warning {
+		margin: 0.5rem 0 0;
+		font-size: 0.8125rem;
+		color: var(--red);
+		font-weight: 500;
+	}
+
+	/* ─── PF Section ─── */
+	.pf-section {
+		margin-bottom: 2rem;
+		padding: 0.875rem 1rem;
+		background: var(--surface);
+		border: 1px solid var(--border-subtle);
+		border-radius: 0.75rem;
+	}
+
+	.pf-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
+	.pf-label {
+		font-size: 0.8125rem;
+		color: var(--text-secondary);
+		font-weight: 500;
+	}
+
+	.pf-input-wrap {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		background: var(--surface-alt);
+		border: 1px solid var(--border);
+		border-radius: 0.5rem;
+		padding: 0.375rem 0.625rem;
+	}
+
+	.pf-currency {
+		font-family: 'JetBrains Mono', monospace;
+		font-size: 0.8125rem;
+		color: var(--text-muted);
+	}
+
+	.pf-field {
+		width: 5rem;
+		padding: 0;
+		font-family: 'JetBrains Mono', monospace;
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: var(--text-secondary);
+		background: transparent;
+		border: none;
+		outline: none;
+	}
+
+	.pf-note {
+		margin: 0.375rem 0 0;
+		font-size: 0.6875rem;
+		color: var(--text-muted);
+		opacity: 0.7;
+	}
+
+	/* ─── Results ─── */
+	.results {
+		animation: fadeUp 0.4s ease-out;
+	}
+
+	@keyframes fadeUp {
 		from {
 			opacity: 0;
-			transform: translateY(30px);
+			transform: translateY(12px);
 		}
 		to {
 			opacity: 1;
@@ -543,529 +562,338 @@
 		}
 	}
 
-	.header-section {
-		text-align: center;
-		margin-bottom: 3rem;
-		animation: fadeIn 0.8s ease-out 0.2s both;
-	}
-
-	@keyframes fadeIn {
-		from { opacity: 0; }
-		to { opacity: 1; }
-	}
-
-	.main-title {
-		font-family: 'Playfair Display', serif;
-		font-size: 3rem;
-		font-weight: 900;
-		color: #0f172a;
-		line-height: 1.1;
-		margin: 0 0 0.5rem 0;
-		letter-spacing: -0.02em;
-	}
-
-	.title-accent {
-		background: linear-gradient(135deg, #0ea5e9 0%, #10b981 100%);
-		-webkit-background-clip: text;
-		-webkit-text-fill-color: transparent;
-		background-clip: text;
-	}
-
-	.subtitle {
-		font-size: 1.125rem;
-		color: #64748b;
-		font-weight: 500;
-		letter-spacing: 0.05em;
-		text-transform: uppercase;
-	}
-
-	.calculator-form {
-		display: flex;
-		flex-direction: column;
-		gap: 2rem;
-		animation: fadeIn 0.8s ease-out 0.4s both;
-	}
-
-	.form-group {
-		display: flex;
-		flex-direction: column;
+	.summary-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
 		gap: 0.75rem;
-	}
-
-	.form-label {
-		font-size: 0.875rem;
-		font-weight: 700;
-		color: #1e293b;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-
-	.label-hint {
-		font-weight: 400;
-		color: #64748b;
-		text-transform: none;
-	}
-
-	.radio-group {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 1rem;
-	}
-
-	.radio-option {
-		position: relative;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 1rem;
-		background: #f8fafc;
-		border: 2px solid #e2e8f0;
-		border-radius: 0.75rem;
-		cursor: pointer;
-		transition: all 0.3s ease;
-	}
-
-	.radio-option:hover {
-		border-color: #0ea5e9;
-		background: #f0f9ff;
-	}
-
-	.radio-option.active {
-		border-color: #0ea5e9;
-		background: linear-gradient(135deg, #f0f9ff 0%, #ecfdf5 100%);
-		box-shadow: 0 4px 12px -2px rgba(14, 165, 233, 0.2);
-	}
-
-	.radio-input {
-		position: absolute;
-		opacity: 0;
-		pointer-events: none;
-	}
-
-	.radio-label {
-		font-weight: 600;
-		color: #334155;
-		font-size: 1rem;
-	}
-
-	.radio-option.active .radio-label {
-		color: #0ea5e9;
-	}
-
-	.radio-indicator {
-		position: absolute;
-		right: 1rem;
-		width: 1.25rem;
-		height: 1.25rem;
-		border: 2px solid #cbd5e1;
-		border-radius: 50%;
-		transition: all 0.3s ease;
-	}
-
-	.radio-option.active .radio-indicator {
-		border-color: #0ea5e9;
-		background: #0ea5e9;
-		box-shadow:
-			inset 0 0 0 3px white,
-			0 0 0 4px rgba(14, 165, 233, 0.2);
-	}
-
-	.input-wrapper {
-		position: relative;
-		display: flex;
-		align-items: center;
-	}
-
-	.salary-input {
-		width: 100%;
-		padding: 1rem 4rem 1rem 1.5rem;
-		font-size: 1.125rem;
-		font-weight: 600;
-		color: #0f172a;
-		background: #f8fafc;
-		border: 2px solid #e2e8f0;
-		border-radius: 0.75rem;
-		outline: none;
-		transition: all 0.3s ease;
-	}
-
-	.salary-input:focus {
-		border-color: #0ea5e9;
-		background: white;
-		box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.1);
-	}
-
-	.input-suffix {
-		position: absolute;
-		right: 1.5rem;
-		font-size: 0.875rem;
-		font-weight: 700;
-		color: #64748b;
-		letter-spacing: 0.05em;
-	}
-
-	.salary-display {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 0.75rem 1rem;
-		background: linear-gradient(135deg, #ecfdf5 0%, #f0f9ff 100%);
-		border-radius: 0.5rem;
-		border: 1px solid #a7f3d0;
-	}
-
-	.salary-label {
-		font-size: 0.875rem;
-		color: #064e3b;
-		font-weight: 600;
-	}
-
-	.salary-amount {
-		font-size: 1.125rem;
-		font-weight: 700;
-		color: #059669;
-	}
-
-	.warning-text {
-		padding: 0.75rem 1rem;
-		background: #fef3c7;
-		border: 1px solid #fbbf24;
-		border-radius: 0.5rem;
-		color: #92400e;
-		font-size: 0.875rem;
-		font-weight: 500;
-	}
-
-	.button-group {
-		display: grid;
-		grid-template-columns: 1fr auto;
-		gap: 1rem;
-		margin-top: 1rem;
-	}
-
-	.btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-		padding: 1rem 2rem;
-		font-weight: 700;
-		font-size: 1rem;
-		border-radius: 0.75rem;
-		border: none;
-		cursor: pointer;
-		transition: all 0.3s ease;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-
-	.btn-primary {
-		background: linear-gradient(135deg, #0ea5e9 0%, #10b981 100%);
-		color: white;
-		box-shadow: 0 4px 12px -2px rgba(14, 165, 233, 0.4);
-	}
-
-	.btn-primary:hover {
-		transform: translateY(-2px);
-		box-shadow: 0 8px 20px -4px rgba(14, 165, 233, 0.5);
-	}
-
-	.btn-primary:active {
-		transform: translateY(0);
-	}
-
-	.btn-secondary {
-		background: #f1f5f9;
-		color: #475569;
-	}
-
-	.btn-secondary:hover {
-		background: #e2e8f0;
-	}
-
-	.btn-icon {
-		transition: transform 0.3s ease;
-	}
-
-	.btn-primary:hover .btn-icon {
-		transform: translateX(4px);
-	}
-
-	.results-section {
-		margin-top: 3rem;
-		padding-top: 3rem;
-		border-top: 2px solid #e2e8f0;
-		animation: fadeIn 0.6s ease-out;
-	}
-
-	.results-grid {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 1.5rem;
-		margin-bottom: 2rem;
-	}
-
-	.result-card {
-		padding: 2rem;
-		border-radius: 1rem;
-		background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-		border: 2px solid #e2e8f0;
-		transition: all 0.3s ease;
-	}
-
-	.result-card:hover {
-		transform: translateY(-4px);
-		box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15);
-	}
-
-	.tax-card {
-		border-color: #fed7aa;
-		background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-	}
-
-	.income-card {
-		border-color: #a7f3d0;
-		background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-	}
-
-	.result-icon {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 3rem;
-		height: 3rem;
-		border-radius: 0.75rem;
 		margin-bottom: 1rem;
 	}
 
-	.tax-card .result-icon {
-		background: #fed7aa;
-		color: #92400e;
-	}
-
-	.income-card .result-icon {
-		background: #6ee7b7;
-		color: #064e3b;
-	}
-
-	.result-title {
-		font-size: 0.875rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-		color: #64748b;
-		margin: 0 0 1.5rem 0;
-	}
-
-	.result-amounts {
+	.summary-card {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: 0.125rem;
+		padding: 1.125rem 1rem;
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: 0.875rem;
+		transition: border-color 0.2s;
 	}
 
-	.result-amount {
-		display: flex;
-		justify-content: space-between;
-		align-items: baseline;
+	.summary-card:hover {
+		border-color: var(--border);
 	}
 
-	.amount-label {
-		font-size: 0.875rem;
-		color: #64748b;
+	.inhand-card {
+		grid-column: 1 / -1;
+		border-color: rgba(52, 211, 153, 0.2);
+		background: linear-gradient(135deg, rgba(52, 211, 153, 0.05) 0%, var(--surface) 100%);
+	}
+
+	.inhand-card:hover {
+		border-color: rgba(52, 211, 153, 0.35);
+	}
+
+	.card-label {
+		font-size: 0.6875rem;
 		font-weight: 600;
+		color: var(--text-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
 	}
 
-	.amount-value {
-		font-size: 1.5rem;
+	.card-value {
+		font-family: 'JetBrains Mono', monospace;
+		font-size: 1.375rem;
 		font-weight: 700;
-		color: #0f172a;
+		line-height: 1.2;
 	}
 
-	.amount-value.highlight {
-		color: #059669;
+	.tax-value {
+		color: var(--red);
 	}
 
+	.pf-value {
+		color: var(--text-secondary);
+	}
+
+	.inhand-value {
+		color: var(--green);
+		font-size: 1.75rem;
+	}
+
+	.card-sub {
+		font-family: 'JetBrains Mono', monospace;
+		font-size: 0.75rem;
+		color: var(--text-muted);
+		font-weight: 500;
+	}
+
+	.inhand-sub {
+		color: var(--green);
+		opacity: 0.7;
+	}
+
+	/* ─── Breakdown Toggle ─── */
 	.breakdown-toggle {
 		width: 100%;
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 1rem 1.5rem;
-		background: #f8fafc;
-		border: 2px solid #e2e8f0;
+		padding: 0.875rem 1rem;
+		background: var(--surface);
+		border: 1px solid var(--border);
 		border-radius: 0.75rem;
 		cursor: pointer;
+		font-family: 'Outfit', sans-serif;
+		font-size: 0.875rem;
 		font-weight: 600;
-		color: #334155;
-		transition: all 0.3s ease;
-		margin-bottom: 1.5rem;
+		color: var(--text-secondary);
+		transition: all 0.2s;
 	}
 
 	.breakdown-toggle:hover {
-		background: #f1f5f9;
-		border-color: #cbd5e1;
+		color: var(--text);
+		border-color: var(--text-muted);
 	}
 
-	.toggle-icon {
+	.chevron {
 		transition: transform 0.3s ease;
+		color: var(--text-muted);
 	}
 
-	.toggle-icon.rotated {
+	.chevron.open {
 		transform: rotate(180deg);
 	}
 
-	.breakdown-section {
-		padding: 2rem;
-		background: #f8fafc;
-		border-radius: 1rem;
-		border: 2px solid #e2e8f0;
-		margin-bottom: 2rem;
-		animation: slideDown 0.4s ease-out;
-	}
-
-	@keyframes slideDown {
-		from {
-			opacity: 0;
-			transform: translateY(-10px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
-	}
-
-	.breakdown-title {
-		font-size: 1.25rem;
-		font-weight: 700;
-		color: #0f172a;
-		margin: 0 0 1.5rem 0;
-	}
-
-	.breakdown-table {
+	/* ─── Detailed Breakdown ─── */
+	.breakdown {
+		margin-top: 1rem;
 		display: flex;
 		flex-direction: column;
 		gap: 0.75rem;
+		animation: fadeUp 0.35s ease-out;
 	}
 
-	.breakdown-row {
-		display: grid;
-		grid-template-columns: 1fr auto;
-		gap: 1rem;
-		padding: 1rem;
-		background: white;
-		border-radius: 0.5rem;
-		border: 1px solid #e2e8f0;
-		animation: fadeInRow 0.4s ease-out both;
+	.calc-group {
+		padding: 1.125rem 1rem;
+		background: var(--surface);
+		border: 1px solid var(--border-subtle);
+		border-radius: 0.875rem;
 	}
 
-	@keyframes fadeInRow {
-		from {
-			opacity: 0;
-			transform: translateX(-10px);
-		}
-		to {
-			opacity: 1;
-			transform: translateX(0);
-		}
+	.final-group {
+		border-color: rgba(52, 211, 153, 0.15);
 	}
 
-	.breakdown-cell {
+	.calc-heading {
+		font-size: 0.6875rem;
+		font-weight: 700;
+		color: var(--text-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		margin: 0 0 0.75rem;
+	}
+
+	.calc-rows {
 		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.calc-row {
+		display: flex;
+		justify-content: space-between;
 		align-items: center;
 		gap: 0.75rem;
 	}
 
-	.slab-cell {
+	.calc-desc {
+		font-size: 0.8125rem;
+		color: var(--text-secondary);
+		font-weight: 400;
+	}
+
+	.calc-amt {
+		font-family: 'JetBrains Mono', monospace;
+		font-size: 0.8125rem;
+		color: var(--text-secondary);
+		font-weight: 500;
+		white-space: nowrap;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.calc-amt.bold {
+		font-weight: 700;
+		color: var(--text);
+	}
+
+	.calc-amt.dim {
+		color: var(--text-muted);
+	}
+
+	.calc-amt.green {
+		color: var(--green);
+	}
+
+	.deduction-row .calc-desc {
+		color: var(--text-muted);
+	}
+
+	.total-row {
+		padding-top: 0.5rem;
+		border-top: 1px solid var(--border-subtle);
+	}
+
+	.total-row .calc-desc {
+		font-weight: 600;
+		color: var(--text);
+	}
+
+	.highlight-tax {
+		border-top-color: var(--border);
+	}
+
+	.highlight-green {
+		border-top-color: rgba(52, 211, 153, 0.15);
+	}
+
+	.rebate-row {
+		padding: 0.375rem 0.625rem;
+		margin: 0.125rem -0.625rem;
+		background: rgba(52, 211, 153, 0.08);
+		border-radius: 0.375rem;
+	}
+
+	.rebate-row .calc-desc {
+		color: var(--green);
+		font-weight: 600;
+	}
+
+	.rebate-text {
+		color: var(--green) !important;
+		font-family: 'Outfit', sans-serif !important;
+		font-weight: 600 !important;
+		font-size: 0.75rem !important;
+	}
+
+	/* ─── Slab Table ─── */
+	.slab-table {
+		display: flex;
 		flex-direction: column;
-		align-items: flex-start;
+		gap: 0;
+		overflow: hidden;
+		border-radius: 0.5rem;
+		border: 1px solid var(--border-subtle);
+	}
+
+	.slab-header {
+		display: grid;
+		grid-template-columns: 1fr 0.4fr 0.7fr 0.6fr;
+		gap: 0.5rem;
+		padding: 0.5rem 0.75rem;
+		background: var(--surface-alt);
+		font-size: 0.625rem;
+		font-weight: 700;
+		color: var(--text-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+	}
+
+	.slab-row {
+		display: grid;
+		grid-template-columns: 1fr 0.4fr 0.7fr 0.6fr;
+		gap: 0.5rem;
+		padding: 0.5rem 0.75rem;
+		border-top: 1px solid var(--border-subtle);
+		animation: slabIn 0.3s ease-out both;
+	}
+
+	@keyframes slabIn {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
 	}
 
 	.slab-label {
-		font-weight: 600;
-		color: #334155;
-		font-size: 0.9375rem;
-	}
-
-	.rate-badge {
-		display: inline-block;
-		padding: 0.25rem 0.75rem;
-		background: #e0f2fe;
-		color: #0369a1;
-		border-radius: 0.375rem;
 		font-size: 0.75rem;
-		font-weight: 700;
+		color: var(--text-secondary);
+		font-weight: 400;
 	}
 
-	.amount-cell {
-		flex-direction: column;
-		align-items: flex-end;
-		gap: 0.25rem;
+	.slab-rate {
+		font-family: 'JetBrains Mono', monospace;
+		font-size: 0.75rem;
+		color: var(--gold);
+		font-weight: 600;
 	}
 
-	.taxable-amount {
-		font-size: 0.8125rem;
-		color: #64748b;
+	.slab-amount,
+	.slab-tax {
+		font-family: 'JetBrains Mono', monospace;
+		font-size: 0.75rem;
+		color: var(--text-secondary);
+		font-weight: 500;
+		font-variant-numeric: tabular-nums;
 	}
 
-	.tax-amount {
-		font-size: 1rem;
-		font-weight: 700;
-		color: #0f172a;
+	/* ─── Responsive ─── */
+	@media (max-width: 480px) {
+		.page {
+			padding: 1rem 0 1.5rem;
+		}
+
+		.salary-field {
+			font-size: 1.25rem;
+			padding: 0.875rem 4rem 0.875rem 1rem;
+		}
+
+		.summary-grid {
+			gap: 0.5rem;
+		}
+
+		.card-value {
+			font-size: 1.125rem;
+		}
+
+		.inhand-value {
+			font-size: 1.375rem;
+		}
+
+		.slab-header,
+		.slab-row {
+			grid-template-columns: 1fr 0.35fr 0.65fr 0.55fr;
+			gap: 0.375rem;
+			padding: 0.5rem 0.5rem;
+		}
+
+		.slab-label {
+			font-size: 0.6875rem;
+		}
+
+		.slab-rate,
+		.slab-amount,
+		.slab-tax {
+			font-size: 0.6875rem;
+		}
+
+		.slab-header {
+			font-size: 0.5625rem;
+		}
+
+		.calc-desc {
+			font-size: 0.75rem;
+		}
+
+		.calc-amt {
+			font-size: 0.75rem;
+		}
 	}
 
-	.disclaimer {
-		display: flex;
-		gap: 1rem;
-		padding: 1.25rem;
-		background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%);
-		border: 2px solid #fbbf24;
-		border-radius: 0.75rem;
-		color: #78350f;
-		font-size: 0.875rem;
-		line-height: 1.6;
-	}
-
-	.disclaimer-icon {
-		flex-shrink: 0;
-		margin-top: 0.125rem;
-	}
-
-	.disclaimer p {
-		margin: 0;
-	}
-
-	@media (max-width: 768px) {
-		.calculator-card {
-			padding: 2rem 1.5rem;
-		}
-
-		.main-title {
-			font-size: 2rem;
-		}
-
-		.subtitle {
-			font-size: 0.875rem;
-		}
-
-		.results-grid {
-			grid-template-columns: 1fr;
-		}
-
-		.button-group {
-			grid-template-columns: 1fr;
-		}
-
-		.radio-group {
-			grid-template-columns: 1fr;
-		}
-
-		.breakdown-row {
-			grid-template-columns: 1fr;
-			gap: 0.75rem;
-		}
-
-		.amount-cell {
-			align-items: flex-start;
-		}
+	.section {
+		/* utility for spacing */
 	}
 </style>
