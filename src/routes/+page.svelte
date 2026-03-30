@@ -201,18 +201,18 @@
 			<div class="summary-grid">
 				<div class="summary-card tax-card">
 					<span class="card-label">Income Tax</span>
-					<span class="card-value tax-value">{formatShort(results.totalTax)}</span>
-					<span class="card-sub">{formatShort(results.taxMonthly)}/mo</span>
+					<span class="card-value tax-value">{formatShort(results.taxMonthly)}<span class="card-per">/mo</span></span>
+					<span class="card-sub">{formatShort(results.totalTax)}/yr</span>
 				</div>
 				<div class="summary-card pf-card">
 					<span class="card-label">Total PF</span>
-					<span class="card-value pf-value">{formatShort(results.totalPF)}</span>
-					<span class="card-sub">{formatShort(results.totalPF / 12)}/mo</span>
+					<span class="card-value pf-value">{formatShort(results.totalPF / 12)}<span class="card-per">/mo</span></span>
+					<span class="card-sub">{formatShort(results.totalPF)}/yr</span>
 				</div>
 				<div class="summary-card inhand-card">
 					<span class="card-label">In-Hand Salary</span>
-					<span class="card-value inhand-value">{formatShort(results.inHandYearly)}</span>
-					<span class="card-sub inhand-sub">{formatShort(results.inHandMonthly)}/mo</span>
+					<span class="card-value inhand-value">{formatShort(results.inHandMonthly)}<span class="card-per">/mo</span></span>
+					<span class="card-sub inhand-sub">{formatShort(results.inHandYearly)}/yr</span>
 				</div>
 			</div>
 
@@ -620,6 +620,12 @@
 	.inhand-value {
 		color: var(--green);
 		font-size: 1.75rem;
+	}
+
+	.card-per {
+		font-size: 0.75em;
+		font-weight: 500;
+		opacity: 0.6;
 	}
 
 	.card-sub {
