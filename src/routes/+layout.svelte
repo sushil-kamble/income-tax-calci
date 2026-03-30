@@ -5,10 +5,26 @@
 	let { children } = $props();
 </script>
 
-<div class="flex min-h-screen flex-col">
+<div class="app-shell">
 	<Navbar />
-	<main class="container mx-auto grow">
+	<main class="app-main">
 		{@render children()}
 	</main>
 	<Footer />
 </div>
+
+<style>
+	.app-shell {
+		display: flex;
+		flex-direction: column;
+		min-height: 100vh;
+	}
+
+	.app-main {
+		flex: 1;
+		width: 100%;
+		max-width: 680px;
+		margin: 0 auto;
+		padding: 0 1rem;
+	}
+</style>
